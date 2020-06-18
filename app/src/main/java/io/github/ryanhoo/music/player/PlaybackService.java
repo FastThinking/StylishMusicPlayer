@@ -1,15 +1,23 @@
 package io.github.ryanhoo.music.player;
 
 import android.app.Notification;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
+import android.content.Context;
 import android.content.Intent;
 import android.graphics.Bitmap;
+import android.graphics.Color;
 import android.os.Binder;
+import android.os.Build;
 import android.os.IBinder;
-import android.support.annotation.Nullable;
-import android.support.v4.app.NotificationCompat;
+
+import androidx.annotation.Nullable;
+import androidx.core.app.NotificationCompat;
+
 import android.widget.RemoteViews;
+
 import io.github.ryanhoo.music.R;
 import io.github.ryanhoo.music.data.model.PlayList;
 import io.github.ryanhoo.music.data.model.Song;
@@ -201,10 +209,11 @@ public class PlaybackService extends Service implements IPlayback, IPlayback.Cal
     @Override
     public void onPlayStatusChanged(boolean isPlaying) {
         showNotification();
-
     }
 
     // Notification
+    String CHANNEL_ID = "com.example.recyclerviewtest.N1";
+    String CHANNEL_NAME = "TEST";
 
     /**
      * Show a notification while this service is running.
@@ -213,19 +222,58 @@ public class PlaybackService extends Service implements IPlayback, IPlayback.Cal
         // The PendingIntent to launch our activity if the user selects this notification
         PendingIntent contentIntent = PendingIntent.getActivity(this, 0, new Intent(this, MainActivity.class), 0);
 
-        // Set the info for the views that show in the notification panel.
-        Notification notification = new NotificationCompat.Builder(this)
-                .setSmallIcon(R.drawable.ic_notification_app_logo)  // the status icon
-                .setWhen(System.currentTimeMillis())  // the time stamp
-                .setContentIntent(contentIntent)  // The intent to send when the entry is clicked
-                .setCustomContentView(getSmallContentView())
-                .setCustomBigContentView(getBigContentView())
-                .setPriority(NotificationCompat.PRIORITY_MAX)
-                .setOngoing(true)
-                .build();
 
-        // Send the notification.
-        startForeground(NOTIFICATION_ID, notification);
+        NotificationChannel notificationChannel = null;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            registerNotificationChannel();
+            int notifyId = (int) System.currentTimeMillis();
+            NotificationCompat.Builder mBuilder = new NotificationCompat.Builder(this, CHANNEL_ID);
+            mBuilder.setSmallIcon(R.mipmap.ic_launcher);//必须要有
+            //可选
+            //.setSound(null)
+            //.setVibrate(null)
+            //...
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N) {
+                mBuilder.setContentTitle(getResources().getString(R.string.mp_app_name));
+            }
+            startForeground(notifyId, mBuilder.build());
+        } else {
+            // Set the info for the views that show in the notification panel.
+            Notification notification = new NotificationCompat.Builder(this)
+                    .setSmallIcon(R.drawable.ic_notification_app_logo)  // the status icon
+                    .setWhen(System.currentTimeMillis())  // the time stamp
+                    .setContentIntent(contentIntent)  // The intent to send when the entry is clicked
+                    .setCustomContentView(getSmallContentView())
+                    .setCustomBigContentView(getBigContentView())
+                    .setPriority(NotificationCompat.PRIORITY_MAX)
+                    .setOngoing(true)
+                    .build();
+            // Send the notification.
+            startForeground(NOTIFICATION_ID, notification);
+        }
+    }
+
+    /**
+     * 注册通知通道
+     */
+    private void registerNotificationChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            NotificationManager mNotificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+            NotificationChannel notificationChannel = mNotificationManager.getNotificationChannel(CHANNEL_ID);
+            if (notificationChannel == null) {
+                NotificationChannel channel = new NotificationChannel(CHANNEL_ID,
+                        CHANNEL_NAME, NotificationManager.IMPORTANCE_HIGH);
+                //是否在桌面icon右上角展示小红点
+                channel.enableLights(true);
+                //小红点颜色
+                channel.setLightColor(Color.RED);
+                //通知显示
+                channel.setLockscreenVisibility(Notification.VISIBILITY_PUBLIC);
+                //是否在久按桌面图标时显示此渠道的通知
+                //channel.setShowBadge(true);
+                mNotificationManager.createNotificationChannel(channel);
+            }
+        }
     }
 
     private RemoteViews getSmallContentView() {
